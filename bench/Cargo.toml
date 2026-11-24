@@ -1,0 +1,12 @@
+[package]
+name = "bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+libc = "0.2.191"
+mio = { path = "../../mio", default-features = false, features = ["os-poll", "net"] }
+
+[profile.release]
+debug = false
