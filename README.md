@@ -10,7 +10,7 @@ go/no-go prototype, the benchmark, the stress test and the QNX test runner.
 | Upstream | https://github.com/tokio-rs/mio |
 | Issue | [tokio-rs/mio#1902](https://github.com/tokio-rs/mio/issues/1902): QNX: add an `ionotify()`-based event driver |
 | `target_os = "qnx"` support | [tokio-rs/mio#2053](https://github.com/tokio-rs/mio/pull/2053) |
-| ionotify selector | branch [`qnx-ionotify`](https://github.com/psychopunksage/mio/tree/qnx-ionotify) |
+| ionotify selector | branch [`qnx-ionotify`](https://github.com/PsychoPunkSage/mio/tree/qnx-ionotify) |
 
 ## The problem
 
