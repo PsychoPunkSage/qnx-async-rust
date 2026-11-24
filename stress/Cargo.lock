@@ -11,6 +11,7 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 [[package]]
 name = "mio"
 version = "1.2.5"
+source = "git+https://github.com/PsychoPunkSage/mio?branch=qnx-ionotify#563bb17fc3682c3dd9acd7046440b97241e87185"
 dependencies = [
  "libc",
  "wasi",

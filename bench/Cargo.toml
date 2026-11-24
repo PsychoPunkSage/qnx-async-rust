@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 libc = "0.2.191"
-mio = { path = "../../mio", default-features = false, features = ["os-poll", "net"] }
+mio = { git = "https://github.com/PsychoPunkSage/mio", branch = "qnx-ionotify", default-features = false, features = ["os-poll", "net"] }
 
 [profile.release]
 debug = false

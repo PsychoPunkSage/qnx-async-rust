@@ -36,7 +36,7 @@ setup="results/$stamp-setup.txt"
 {
     echo "date: $(date -u)"
     echo "runs per cell: $runs, warmup: ${warmup}s, measure: ${measure}s, message: 64 B"
-    echo "mio: $(git -C ../../mio rev-parse --short HEAD 2>/dev/null || echo unknown)$(git -C ../../mio diff --quiet 2>/dev/null || echo ' (dirty)')"
+    echo "mio: $(grep -A2 '^name = "mio"' Cargo.lock | grep '^source' | cut -d'"' -f2)"
     echo "rustc: $(rustc --version)"
     echo "--- target"
     ssh "$host" 'uname -a; pidin info | head -8'
