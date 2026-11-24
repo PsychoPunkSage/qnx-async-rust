@@ -1,0 +1,5 @@
+[build]
+target = "x86_64-pc-qnx"
+
+[unstable]
+build-std = ["std", "panic_abort"]
