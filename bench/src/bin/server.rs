@@ -2,7 +2,8 @@
 //! echoed back as soon as it arrives. Built twice: once on mio's `poll()`
 //! selector (`--cfg mio_unsupported_force_poll_poll`) and once on ionotify.
 //!
-//! Usage: `server <port>`. Runs until killed.
+//! Usage: `server <port>`. Runs until killed. With `ALWAYS_WRITABLE` set,
+//! every connection stays registered for writing as well, as tokio does.
 
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::SocketAddr;
@@ -20,6 +21,8 @@ struct Conn {
     out: Vec<u8>,
     /// Whether WRITABLE is currently part of the registration.
     want_write: bool,
+    /// Keep WRITABLE registered at all times, as tokio does (`ALWAYS_WRITABLE`).
+    always_write: bool,
 }
 
 fn main() -> io::Result<()> {
@@ -38,11 +41,12 @@ fn main() -> io::Result<()> {
 
     let mut conns: Vec<Option<Conn>> = Vec::new();
     let mut buf = vec![0; 16 * 1024];
+    let always_write = std::env::var_os("ALWAYS_WRITABLE").is_some();
     loop {
         poll.poll(&mut events, None)?;
         for event in events.iter() {
             if event.token() == LISTENER {
-                accept_all(&poll, &mut listener, &mut conns)?;
+                accept_all(&poll, &mut listener, &mut conns, always_write)?;
                 continue;
             }
             let i = event.token().0;
@@ -61,18 +65,24 @@ fn accept_all(
     poll: &Poll,
     listener: &mut TcpListener,
     conns: &mut Vec<Option<Conn>>,
+    always_write: bool,
 ) -> io::Result<()> {
     loop {
         match listener.accept() {
             Ok((mut stream, _)) => {
                 stream.set_nodelay(true)?;
                 let token = Token(conns.len());
-                poll.registry()
-                    .register(&mut stream, token, Interest::READABLE)?;
+                let interests = if always_write {
+                    Interest::READABLE | Interest::WRITABLE
+                } else {
+                    Interest::READABLE
+                };
+                poll.registry().register(&mut stream, token, interests)?;
                 conns.push(Some(Conn {
                     stream,
                     out: Vec::new(),
-                    want_write: false,
+                    want_write: always_write,
+                    always_write,
                 }));
             }
             Err(e) if e.kind() == ErrorKind::WouldBlock => return Ok(()),
@@ -112,7 +122,7 @@ fn serve(poll: &Poll, token: Token, conn: &mut Conn, buf: &mut [u8]) -> io::Resu
     }
 
     // Ask for WRITABLE only while there is something left to send.
-    let want_write = !conn.out.is_empty();
+    let want_write = conn.always_write || !conn.out.is_empty();
     if open && want_write != conn.want_write {
         let interests = if want_write {
             Interest::READABLE | Interest::WRITABLE
