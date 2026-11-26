@@ -7,6 +7,15 @@ publish = false
 [dependencies]
 libc = "0.2.191"
 mio = { git = "https://github.com/PsychoPunkSage/mio", branch = "qnx-ionotify", default-features = false, features = ["os-poll", "net"] }
+tokio = { version = "1", default-features = false, features = ["rt", "net", "io-util"] }
 
 [profile.release]
 debug = false
+
+# tokio depends on mio from crates.io; use the same ionotify branch for it.
+[patch.crates-io]
+mio = { git = "https://github.com/PsychoPunkSage/mio", branch = "qnx-ionotify" }
+# tokio 1.54.1 with `target_os = "qnx"` support; see patches/README.md.
+tokio = { path = "../patches/tokio-1.54.1" }
+# socket2 0.6.5 (the latest release) predates its QNX 8 support (rust-lang/socket2#670, #677).
+socket2 = { git = "https://github.com/rust-lang/socket2", rev = "b6c3b8e" }

@@ -8,7 +8,14 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "mio",
+ "tokio",
 ]
+
+[[package]]
+name = "bytes"
+version = "1.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "776dfebd015e2d8732c684a2c71003674ccb49457b539b9e82151ba38e96dd7c"
 
 [[package]]
 name = "libc"
@@ -23,6 +30,33 @@ source = "git+https://github.com/PsychoPunkSage/mio?branch=qnx-ionotify#563bb17f
 dependencies = [
  "libc",
  "wasi",
+ "windows-sys",
+]
+
+[[package]]
+name = "pin-project-lite"
+version = "0.2.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c938015719552d665fd0553b90d96cd7ff58e83e4c061ca99e6bb78865a72752"
+
+[[package]]
+name = "socket2"
+version = "0.6.5"
+source = "git+https://github.com/rust-lang/socket2?rev=b6c3b8e#b6c3b8ef813aa294222f0221a177872732999442"
+dependencies = [
+ "libc",
+ "windows-sys",
+]
+
+[[package]]
+name = "tokio"
+version = "1.54.1"
+dependencies = [
+ "bytes",
+ "libc",
+ "mio",
+ "pin-project-lite",
+ "socket2",
  "windows-sys",
 ]
 
