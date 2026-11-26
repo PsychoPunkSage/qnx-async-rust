@@ -1,11 +1,11 @@
-date: Tue Nov 24 10:50:54 AM UTC 2026
+date: Thu Nov 26 09:42:02 AM UTC 2026
 runs per cell: 3, warmup: 2s, measure: 10s, message: 64 B
-mio: 563bb17
+mio: git+https://github.com/PsychoPunkSage/mio?branch=qnx-ionotify#563bb17fc3682c3dd9acd7046440b97241e87185
 rustc: rustc 1.102.0-nightly (3ef0c22cd 2026-11-11)
 --- target
 QNX qnxvm 8.0.0 2026/10/30-09:10:05EDT x86pc x86_64
-CPU:X86_64 Release:8.0.0  FreeMem:1817MB/2047MB BootTime:Nov 23 17:50:08 UTC 2026
-Processes: 22, Threads: 398
+CPU:X86_64 Release:8.0.0  FreeMem:1808MB/2047MB BootTime:Nov 23 17:50:08 UTC 2026
+Processes: 25, Threads: 401
 Processor1: 721582 Intel 686 F6M189S1 3302MHz FPU 
 Processor2: 721582 Intel 686 F6M189S1 3302MHz FPU 
 Processor3: 721582 Intel 686 F6M189S1 3302MHz FPU 
