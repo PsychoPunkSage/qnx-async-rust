@@ -22,6 +22,11 @@ use std::time::{Duration, Instant};
 const MESSAGE: usize = 64;
 /// Enough for 1000+ connections plus stdio.
 const MAX_FDS: u64 = 4096;
+/// Connections opened back to back before pausing; half the accept queue.
+const CONNECT_BATCH: usize = 64;
+/// Pause between batches, so the server can accept the last one. Setup
+/// only: it ends before the warmup starts.
+const CONNECT_PAUSE: Duration = Duration::from_millis(10);
 
 const WARMUP: u8 = 0;
 const MEASURE: u8 = 1;
@@ -47,10 +52,16 @@ fn main() -> io::Result<()> {
     bench::raise_fd_limit(MAX_FDS)?;
     let iosock_pid = bench::find_pid("io-sock")?;
 
-    // Idle connections: opened, then never used.
-    let idle = (0..total - active)
-        .map(|_| TcpStream::connect(addr))
-        .collect::<io::Result<Vec<_>>>()?;
+    // Idle connections: opened, then never used. Opened in batches so the
+    // server's accept queue (128 on QNX) can't overflow while connecting:
+    // io-sock answers an overflow with a reset.
+    let mut idle = Vec::with_capacity(total - active);
+    for i in 0..total - active {
+        if i > 0 && i % CONNECT_BATCH == 0 {
+            thread::sleep(CONNECT_PAUSE);
+        }
+        idle.push(TcpStream::connect(addr)?);
+    }
 
     let phase = Arc::new(AtomicU8::new(WARMUP));
     let workers = (0..active)
