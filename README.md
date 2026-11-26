@@ -5,12 +5,14 @@ for tokio and the rest of async Rust), built on `ionotify()` and pulses instead
 of `poll()`. This repository holds the evidence and tooling around it: the
 go/no-go prototype, the benchmark, the stress test and the QNX test runner.
 
-| | |
-|---|---|
-| Upstream | https://github.com/tokio-rs/mio |
-| Issue | [tokio-rs/mio#1902](https://github.com/tokio-rs/mio/issues/1902): QNX: add an `ionotify()`-based event driver |
-| `target_os = "qnx"` support | [tokio-rs/mio#2053](https://github.com/tokio-rs/mio/pull/2053) |
-| ionotify selector | [tokio-rs/mio#2056](https://github.com/tokio-rs/mio/pull/2056) |
+|                             |                                                                                                                                                                                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upstream                    | https://github.com/tokio-rs/mio                                                                                                                                                                                                  |
+| Issue                       | [tokio-rs/mio#1902](https://github.com/tokio-rs/mio/issues/1902): QNX: add an `ionotify()`-based event driver                                                                                                                    |
+| `target_os = "qnx"` support | [tokio-rs/mio#2053](https://github.com/tokio-rs/mio/pull/2053)                                                                                                                                                                   |
+| ionotify selector           | [tokio-rs/mio#2056](https://github.com/tokio-rs/mio/pull/2056)                                                                                                                                                                   |
+| libc bindings               | [rust-lang/libc#5783](https://github.com/rust-lang/libc/pull/5783): `ionotify()`, `_NOTIFY_*`, `SIGEV_PULSE`, `struct _pulse`, `RLIMIT_SIGEVENT_NP` (issue [rust-lang/libc#5780](https://github.com/rust-lang/libc/issues/5780)) |
+| libc-test on QNX 8          | [rust-lang/libc#5785](https://github.com/rust-lang/libc/issues/5785): ctest does not run for `target_os = "qnx"`                                                                                                                 |
 
 ## The problem
 
@@ -48,25 +50,25 @@ ionotify's improvement over `poll()`, and "same" means within 5%.
 
 **1 active connection**
 
-| Open connections | Selector | req/s | p50 µs | p99 µs | CPU µs/req |
-|---|---|---|---|---|---|
-| 10 | poll | 7 843 | 110.5 | 304.8 | 130.3 |
-| 10 | ionotify | 8 804 | 101.1 | 251.6 | 124.1 |
-| 100 | poll | 6 036 | 143.1 | 409.6 | 191.9 |
-| 100 | ionotify | 8 876 | 101.6 | 244.1 | 123.4 |
-| 1000 | poll | 1 012 | 782.1 | 3 634.6 | 1 005.8 |
-| 1000 | ionotify | **8 849** | **101.6** | **240.5** | **122.6** |
+| Open connections | Selector | req/s     | p50 µs    | p99 µs    | CPU µs/req |
+| ---------------- | -------- | --------- | --------- | --------- | ---------- |
+| 10               | poll     | 7 843     | 110.5     | 304.8     | 130.3      |
+| 10               | ionotify | 8 804     | 101.1     | 251.6     | 124.1      |
+| 100              | poll     | 6 036     | 143.1     | 409.6     | 191.9      |
+| 100              | ionotify | 8 876     | 101.6     | 244.1     | 123.4      |
+| 1000             | poll     | 1 012     | 782.1     | 3 634.6   | 1 005.8    |
+| 1000             | ionotify | **8 849** | **101.6** | **240.5** | **122.6**  |
 
 **8 active connections**
 
-| Open connections | Selector | req/s | p50 µs | p99 µs | CPU µs/req |
-|---|---|---|---|---|---|
-| 10 | poll | 12 190 | 582.1 | 1 795.8 | 113.6 |
-| 10 | ionotify | 14 413 | 524.7 | 1 289.8 | 117.8 |
-| 100 | poll | 10 876 | 699.3 | 1 877.3 | 125.1 |
-| 100 | ionotify | 14 717 | 521.1 | 1 206.4 | 115.9 |
-| 1000 | poll | 4 601 | 1 495.4 | 5 265.3 | 261.0 |
-| 1000 | ionotify | **14 353** | **539.6** | **1 342.0** | **119.6** |
+| Open connections | Selector | req/s      | p50 µs    | p99 µs      | CPU µs/req |
+| ---------------- | -------- | ---------- | --------- | ----------- | ---------- |
+| 10               | poll     | 12 190     | 582.1     | 1 795.8     | 113.6      |
+| 10               | ionotify | 14 413     | 524.7     | 1 289.8     | 117.8      |
+| 100              | poll     | 10 876     | 699.3     | 1 877.3     | 125.1      |
+| 100              | ionotify | 14 717     | 521.1     | 1 206.4     | 115.9      |
+| 1000             | poll     | 4 601      | 1 495.4   | 5 265.3     | 261.0      |
+| 1000             | ionotify | **14 353** | **539.6** | **1 342.0** | **119.6**  |
 
 - **ionotify stays flat as connections grow; `poll()` does not.** With 1000
   open connections and one active: 8.7× the throughput, 15× lower p99 and 8.2×
@@ -92,10 +94,10 @@ setup: [`bench/results/20261124-162054-setup.txt`](bench/results/20261124-162054
   byte, while another thread wakes the `Waker` at random. A connection with data
   in flight that makes no progress for 5 s fails the run as a lost wakeup.
 
-  | Run (release) | Echoed | Events | Waker events / wakes | Readable events with nothing to read | Result |
-  |---|---|---|---|---|---|
-  | 10 s, 100 connections | 1.8 GiB | 112 432 | 970 / 970 | 0 | pass |
-  | 60 s, 200 connections | 10.4 GiB | 698 576 | 5 757 / 5 757 | 0 | pass |
+  | Run (release)         | Echoed   | Events  | Waker events / wakes | Readable events with nothing to read | Result |
+  | --------------------- | -------- | ------- | -------------------- | ------------------------------------ | ------ |
+  | 10 s, 100 connections | 1.8 GiB  | 112 432 | 970 / 970            | 0                                    | pass   |
+  | 60 s, 200 connections | 10.4 GiB | 698 576 | 5 757 / 5 757        | 0                                    | pass   |
 
 - **Event limit**: each registration uses one registered event, capped by
   `RLIMIT_SIGEVENT_NP` (256 by default). Past it, `register` fails with
