@@ -1,12 +1,15 @@
 #!/bin/sh
-# Run the echo benchmark matrix on a QNX target over SSH: the same server built
-# on mio's poll() selector and on the ionotify selector, at several connection
-# counts. Selectors alternate within each cell so drift hits both equally.
+# Run the echo benchmark matrix on a QNX target over SSH: the mio and tokio echo
+# servers, each built on mio's poll() selector and on the ionotify selector, at
+# several connection counts. Servers alternate within each cell so drift hits
+# all of them equally.
 #
 # Needs the QNX SDP environment (qnxsdp-env.sh) for the build, and root on the
 # target to raise the fd and registered-event limits.
 #
-# Tunables (environment): QNX_SSH_HOST, RUNS, TOTALS, ACTIVES, WARMUP, MEASURE.
+# Tunables (environment): QNX_SSH_HOST, RUNS, TOTALS, ACTIVES, WARMUP, MEASURE,
+# SERVERS (default: mio-poll mio-ionotify tokio-poll tokio-ionotify), and
+# CARGO_ARGS (extra arguments for both cargo builds).
 
 set -eu
 cd "$(dirname "$0")"
@@ -17,16 +20,22 @@ totals="${TOTALS:-10 100 1000}"
 actives="${ACTIVES:-1 8}"
 warmup="${WARMUP:-2}"
 measure="${MEASURE:-10}"
+servers="${SERVERS:-mio-poll mio-ionotify tokio-poll tokio-ionotify}"
+cargo_args="${CARGO_ARGS:-}"
 remote=/data/tmp/bench
 
-cargo build --release
+# shellcheck disable=SC2086 # CARGO_ARGS is split on purpose.
+cargo build --release $cargo_args
+# shellcheck disable=SC2086
 RUSTFLAGS="--cfg mio_unsupported_force_poll_poll" CARGO_TARGET_DIR=target/poll \
-    cargo build --release
+    cargo build --release $cargo_args
 
 ssh "$host" mkdir -p "$remote"
 scp -q target/x86_64-pc-qnx/release/client "$host:$remote/client"
-scp -q target/x86_64-pc-qnx/release/server "$host:$remote/server-ionotify"
-scp -q target/poll/x86_64-pc-qnx/release/server "$host:$remote/server-poll"
+scp -q target/x86_64-pc-qnx/release/server "$host:$remote/mio-ionotify"
+scp -q target/poll/x86_64-pc-qnx/release/server "$host:$remote/mio-poll"
+scp -q target/x86_64-pc-qnx/release/tokio_server "$host:$remote/tokio-ionotify"
+scp -q target/poll/x86_64-pc-qnx/release/tokio_server "$host:$remote/tokio-poll"
 
 stamp=$(date +%Y%m%d-%H%M%S)
 mkdir -p results
@@ -47,10 +56,10 @@ port=7200
 for run in $(seq "$runs"); do
     for total in $totals; do
         for active in $actives; do
-            for sel in poll ionotify; do
+            for server in $servers; do
                 port=$((port + 1))
-                row=$(ssh "$host" "cd $remote; ./server-$sel $port & pid=\$!; sleep 1; \
-                    ./client 127.0.0.1:$port $total $active $warmup $measure \$pid $sel; \
+                row=$(ssh "$host" "cd $remote; ./$server $port & pid=\$!; sleep 1; \
+                    ./client 127.0.0.1:$port $total $active $warmup $measure \$pid $server; \
                     kill \$pid; wait \$pid 2>/dev/null; true")
                 echo "$run,$row" | tee -a "$csv"
             done

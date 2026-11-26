@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Plot a results CSV from run.sh: for each active-connection count, three
-panels (throughput, p99 latency, CPU per request) comparing the poll()
-selector with the ionotify selector at each number of open connections.
-Bars are medians of the runs; the label above each pair is ionotify's
-improvement over poll().
+"""Plot a results CSV from run.sh: for each server (mio, tokio) and each
+active-connection count, three panels (throughput, p99 latency, CPU per
+request) comparing the poll() selector with the ionotify selector at each
+number of open connections. Bars are medians of the runs; the label above
+each pair is ionotify's improvement over poll().
+
+Older CSVs label rows `poll` / `ionotify` (mio only); those are read as
+`mio-poll` / `mio-ionotify`.
 
 Usage: plot.py results/<stamp>.csv [out_dir]
 """
@@ -36,7 +39,10 @@ def load(path):
     cells = defaultdict(list)
     with open(path, newline="") as f:
         for row in csv.DictReader(f):
-            cells[(int(row["active"]), row["label"], int(row["total"]))].append(row)
+            label = row["label"]
+            if label in ("poll", "ionotify"):
+                label = f"mio-{label}"
+            cells[(int(row["active"]), label, int(row["total"]))].append(row)
     return cells
 
 
@@ -44,13 +50,14 @@ def median(cells, key, column):
     return statistics.median(float(r[column]) for r in cells[key])
 
 
-def plot(cells, active, out):
-    totals = sorted({t for a, _, t in cells if a == active})
+def plot(cells, server, active, out):
+    totals = sorted({t for a, label, t in cells
+                     if a == active and label.startswith(f"{server}-")})
     fig, axes = plt.subplots(1, len(PANELS), figsize=(12, 4.2), facecolor=SURFACE)
     width = 0.38
     for ax, (column, title, higher_better, fmt) in zip(axes, PANELS):
-        old = [median(cells, (active, "poll", t), column) for t in totals]
-        new = [median(cells, (active, "ionotify", t), column) for t in totals]
+        old = [median(cells, (active, f"{server}-poll", t), column) for t in totals]
+        new = [median(cells, (active, f"{server}-ionotify", t), column) for t in totals]
         top = max(old + new)
         xs = range(len(totals))
         ax.bar([x - width / 2 for x in xs], old, width, color=OLD, label="poll() (before)")
@@ -86,7 +93,7 @@ def plot(cells, active, out):
     fig.legend(handles, labels, loc="upper right", ncol=2, frameon=False,
                fontsize=10, labelcolor=TEXT, bbox_to_anchor=(0.99, 0.99))
     plural = "" if active == 1 else "s"
-    fig.suptitle(f"mio echo server on QNX 8, {active} active connection{plural}",
+    fig.suptitle(f"{server} echo server on QNX 8, {active} active connection{plural}",
                  x=0.01, y=0.97, ha="left", fontsize=12, color=TEXT, fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(out, facecolor=SURFACE)
@@ -99,10 +106,11 @@ def main():
     path = Path(sys.argv[1])
     out_dir = Path(sys.argv[2]) if len(sys.argv) == 3 else path.parent
     cells = load(path)
-    for active in sorted({a for a, _, _ in cells}):
-        out = out_dir / f"{path.stem}-active{active}.svg"
-        plot(cells, active, out)
-        print(f"wrote {out}")
+    for server in sorted({label.split("-")[0] for _, label, _ in cells}):
+        for active in sorted({a for a, label, _ in cells if label.startswith(f"{server}-")}):
+            out = out_dir / f"{path.stem}-{server}-active{active}.svg"
+            plot(cells, server, active, out)
+            print(f"wrote {out}")
 
 
 if __name__ == "__main__":
